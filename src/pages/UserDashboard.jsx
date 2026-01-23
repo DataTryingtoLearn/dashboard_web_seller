@@ -34,7 +34,6 @@ const UserDashboard = () => {
                     fetch('/api/leads/recent')
                 ]);
 
-                // Log status codes
                 console.log("DASHBOARD: Respuestas recibidas", {
                     total: totalRes.status,
                     weekly: weeklyRes.status,

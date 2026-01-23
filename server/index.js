@@ -468,6 +468,12 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-app.listen(PORT, () => {
-    console.log(`Servidor backend corriendo en http://localhost:${PORT}`);
-});
+// Export app for Vercel
+export default app;
+
+// Only listen on port if not running on Vercel
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`Servidor backend corriendo en http://localhost:${PORT}`);
+    });
+}
