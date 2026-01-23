@@ -8,10 +8,10 @@ def get_vacancy_knowledge(vacante_id):
     """
     conn_str = (
         r'DRIVER={ODBC Driver 17 for SQL Server};'
-        r'SERVER=10.128.156.119;'
-        r'DATABASE=web_react_dashboard;'
-        r'UID=E029863;'
-        r'PWD=E0298631;'
+        r'SERVER=;'
+        r'DATABASE='
+        r'UID=;'
+        r'PWD=;'
         r'TrustServerCertificate=yes;'
     )
 
