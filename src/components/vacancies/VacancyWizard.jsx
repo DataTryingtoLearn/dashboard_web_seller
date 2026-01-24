@@ -43,7 +43,7 @@ const VacancyWizard = () => {
                 });
                 const data = await response.json();
                 if (data.success) {
-                    setVacanteId(data.vacanteId);
+                    setVacanteId(data.data.vacanteId);
                     setStep(2);
                 } else {
                     setError(data.message || 'Error al guardar la vacante');

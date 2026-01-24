@@ -33,8 +33,9 @@ export const AuthProvider = ({ children }) => {
             const data = await response.json();
 
             if (data.success) {
-                setUser(data.user);
-                localStorage.setItem('user', JSON.stringify(data.user));
+                const userData = data.data.user;
+                setUser(userData);
+                localStorage.setItem('user', JSON.stringify(userData));
                 return { success: true };
             } else {
                 return { success: false, message: data.message || 'Error al iniciar sesión' };

@@ -53,10 +53,10 @@ const UserDashboard = () => {
                 });
 
                 setStats({
-                    total: Number(totalJson?.count ?? 0).toLocaleString(),
-                    contacted: Number(contactedJson?.count ?? 0).toLocaleString(),
-                    conversions: Number(conversionsJson?.count ?? 0).toLocaleString(),
-                    avgTime: avgTimeJson?.value || '0m'
+                    total: Number(totalJson?.data?.count ?? 0).toLocaleString(),
+                    contacted: Number(contactedJson?.data?.count ?? 0).toLocaleString(),
+                    conversions: Number(conversionsJson?.data?.count ?? 0).toLocaleString(),
+                    avgTime: avgTimeJson?.data?.value || '0m'
                 });
 
                 if (weeklyJson.success && Array.isArray(weeklyJson.data)) {

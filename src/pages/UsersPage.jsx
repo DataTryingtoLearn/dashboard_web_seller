@@ -25,9 +25,9 @@ const UsersPage = () => {
                 permission_level: currentUser?.permission_level || 1
             });
             const response = await fetch(`/api/users?${params}`);
-            const data = await response.json();
-            if (Array.isArray(data)) {
-                setUsers(data);
+            const json = await response.json();
+            if (json.success && Array.isArray(json.data)) {
+                setUsers(json.data);
             } else {
                 setUsers([]);
             }
@@ -42,8 +42,10 @@ const UsersPage = () => {
         if (currentUser?.permission_level < 8) return;
         try {
             const response = await fetch('/api/clients');
-            const data = await response.json();
-            setClients(data);
+            const json = await response.json();
+            if (json.success && Array.isArray(json.data)) {
+                setClients(json.data);
+            }
         } catch (error) {
             console.error('Error fetching clients:', error);
         }

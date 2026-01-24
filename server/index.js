@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcrypt';
 import { sql, poolPromise } from './db.js';
+import { QUERIES } from './sql_queries.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -18,158 +19,94 @@ app.use(express.json());
 // Serve Static Files (Frontend)
 app.use(express.static(path.join(__dirname, '../dist')));
 
+// Helper para respuestas estandarizadas
+const sendResponse = (res, data = null, message = "", success = true) => {
+    res.json({
+        success,
+        data,
+        message
+    });
+};
+
+const sendError = (res, error, message = "Error en el servidor", statusCode = 500) => {
+    console.error(message, error);
+    res.status(statusCode).json({
+        success: false,
+        data: null,
+        message: error.message || message
+    });
+};
+
 // --- Endpoint para conteo de leads ---
 app.get('/api/leads/count', async (req, res) => {
-    console.log("--> Petición recibida: Obteniendo conteo de leads...");
     try {
         const pool = await poolPromise;
-        if (!pool) {
-            return res.status(503).json({ success: false, message: 'Database connection not available' });
-        }
-        const result = await pool.request().query('SELECT COUNT(distinct remitente_wa_id) as total FROM bbdd_sophia..conversaciones where fecha_mensaje >= CONVERT(date, GETDATE() - 7) ;');
+        if (!pool) return sendError(res, new Error('Database not available'), 'Error de conexión', 503);
 
+        const result = await pool.request().query(QUERIES.GET_LEADS_COUNT);
         const total = result.recordset[0]?.total || 0;
 
-        console.log('Resultado de la consulta:', total);
-
-        res.json({
-            success: true,
-            count: total
-        });
+        sendResponse(res, { count: total }, "Conteo obtenido correctamente");
     } catch (error) {
-        console.error('Error en la base de datos (count):', error);
-        res.status(500).json({ success: false, message: error.message });
+        sendError(res, error, 'Error obteniendo conteo de leads');
     }
 });
 
-// --- DUMMY ENDPOINTS FOR DASHBOARD (Placeholder for future SQL) ---
+// --- DUMMY ENDPOINTS FOR DASHBOARD ---
 
-// Endpoint: Contactados (Conversaciones de los últimos 7 días)
+// Contactados
 app.get('/api/leads/contacted', async (req, res) => {
-    console.log("--> Petición recibida: Obteniendo leads contactados...");
     try {
         const pool = await poolPromise;
-        const result = await pool.request()
-            .query(`
-                SELECT COUNT(*) AS count 
-                FROM bbdd_sophia..conversaciones 
-                WHERE fecha_mensaje >= CONVERT(date, GETDATE() - 7)
-            `);
-
-        res.json({
-            success: true,
-            count: result.recordset[0].count
-        });
+        const result = await pool.request().query(QUERIES.GET_CONTACTED_COUNT);
+        sendResponse(res, { count: result.recordset[0].count }, "Leads contactados obtenidos");
     } catch (err) {
-        console.error('Error en /api/leads/contacted:', err);
-        res.status(500).json({ success: false, error: err.message });
+        sendError(res, err, 'Error en /api/leads/contacted');
     }
 });
 
-// Endpoint: Conversiones (Citas de los últimos 7 días)
+// Conversiones
 app.get('/api/leads/conversions', async (req, res) => {
-    console.log("--> Petición recibida: Obteniendo conversiones...");
     try {
         const pool = await poolPromise;
-        const result = await pool.request()
-            .query(`
-                SELECT COUNT(*) AS count 
-                FROM bbdd_sophia..tb_citas 
-                WHERE fecha_mensaje >= CONVERT(date, GETDATE() - 7)
-            `);
-
-        res.json({
-            success: true,
-            count: result.recordset[0].count
-        });
+        const result = await pool.request().query(QUERIES.GET_CONVERSIONS_COUNT);
+        sendResponse(res, { count: result.recordset[0].count }, "Conversiones obtenidas");
     } catch (err) {
-        console.error('Error en /api/leads/conversions:', err);
-        res.status(500).json({ success: false, error: err.message });
+        sendError(res, err, 'Error en /api/leads/conversions');
     }
 });
 
-// Endpoint: Tiempo Promedio de Respuesta
+// Tiempo Promedio
 app.get('/api/leads/avg-time', async (req, res) => {
-    console.log("--> Petición recibida: Calculando tiempo promedio...");
     try {
         const pool = await poolPromise;
-        const result = await pool.request()
-            .query(`
-                WITH mensajes AS (
-                    SELECT 
-                        remitente_wa_id,
-                        fecha_mensaje,
-                        LAG(fecha_mensaje) OVER (
-                            PARTITION BY remitente_wa_id
-                            ORDER BY fecha_mensaje
-                        ) AS fechaAnterior
-                    FROM bbdd_sophia..conversaciones
-                    WHERE fecha_mensaje >= CONVERT(date, GETDATE() - 7)
-                )
-                SELECT 
-                    AVG(DATEDIFF(MINUTE, fechaAnterior, fecha_mensaje)) AS Promedio
-                FROM mensajes
-                WHERE fechaAnterior IS NOT NULL;
-            `);
-
+        const result = await pool.request().query(QUERIES.GET_AVG_RESPONSE_TIME);
         const promedio = result.recordset[0].Promedio || 0;
-        res.json({
-            success: true,
-            value: `${promedio}m`
-        });
+        sendResponse(res, { value: `${promedio}m` }, "Tiempo promedio calculado");
     } catch (err) {
-        console.error('Error en /api/leads/avg-time:', err);
-        res.status(500).json({ success: false, error: err.message });
+        sendError(res, err, 'Error en /api/leads/avg-time');
     }
 });
 
-// Endpoint: Gráfico Semanal
+// Gráfico Semanal
 app.get('/api/leads/weekly', async (req, res) => {
-    console.log("--> Petición recibida: Obteniendo datos semanales...");
     try {
         const pool = await poolPromise;
-        const result = await pool.request()
-            .query(`
-                SELECT
-                    LEFT(DATENAME(WEEKDAY, fecha_mensaje), 3) AS name,
-                    COUNT(*) AS leads
-                FROM bbdd_sophia..conversaciones
-                WHERE fecha_mensaje >= DATEADD(DAY, -7, CONVERT(date, GETDATE()))
-                GROUP BY DATENAME(WEEKDAY, fecha_mensaje), DATEPART(WEEKDAY, fecha_mensaje)
-                ORDER BY MIN(fecha_mensaje);
-            `);
-
-        res.json({
-            success: true,
-            data: result.recordset
-        });
+        const result = await pool.request().query(QUERIES.GET_WEEKLY_LEADS);
+        sendResponse(res, result.recordset, "Datos semanales obtenidos");
     } catch (err) {
-        console.error('Error en /api/leads/weekly:', err);
-        res.status(500).json({ success: false, error: err.message });
+        sendError(res, err, 'Error en /api/leads/weekly');
     }
 });
 
+// Actividad Reciente
 app.get('/api/leads/recent', async (req, res) => {
-    console.log("--> Petición recibida: Obteniendo actividad reciente...");
     try {
         const pool = await poolPromise;
-        const result = await pool.request()
-            .query(`
-                SELECT 
-                    mensaje_texto AS message, 
-                    FORMAT(fecha_mensaje, 'HH:mm') AS time
-                FROM bbdd_sophia..conversaciones
-                WHERE fecha_mensaje >= DATEADD(DAY, -7, CONVERT(date, GETDATE()))
-                ORDER BY fecha_mensaje DESC;
-            `);
-
-        res.json({
-            success: true,
-            data: result.recordset
-        });
+        const result = await pool.request().query(QUERIES.GET_RECENT_ACTIVITY);
+        sendResponse(res, result.recordset, "Actividad reciente obtenida");
     } catch (err) {
-        console.error('Error en /api/leads/recent:', err);
-        res.status(500).json({ success: false, error: err.message });
+        sendError(res, err, 'Error en /api/leads/recent');
     }
 });
 
@@ -178,50 +115,44 @@ app.post('/api/login', async (req, res) => {
     const { id, password } = req.body;
 
     if (!id || !password) {
-        return res.status(400).json({ success: false, message: 'ID y contraseña requeridos' });
+        return sendError(res, new Error('Faltan credenciales'), 'ID y contraseña requeridos', 400);
     }
 
-    // --- USUARIOS DE PRUEBA (HARDCODED) ---
+    // Usuarios de prueba
     const trialUsers = {
         'E029863': { id: 'E029863', name: 'Admin de Prueba', role: 'admin' },
         'E015379': { id: 'E015379', name: 'Usuario de Prueba', role: 'user' }
     };
 
-    console.log(`Intentando login para ID: ${id}`);
-
     if (trialUsers[id] && (password === 'password123' || password === id)) {
-        console.log(`Login de PRUEBA exitoso para: ${id}`);
-        return res.json({
-            success: true,
+        return sendResponse(res, {
             user: {
                 id: trialUsers[id].id,
                 name: trialUsers[id].name,
                 role: trialUsers[id].role
             }
-        });
+        }, "Login de prueba exitoso");
     }
 
     try {
         const pool = await poolPromise;
         const result = await pool.request()
             .input('id', sql.VarChar, id)
-            .query('SELECT id, name, password, role FROM web_react_dashboard..users_main WHERE id = @id');
+            .query(QUERIES.GET_USER_BY_ID);
 
         const user = result.recordset[0];
 
         if (!user) {
-            return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
+            return sendError(res, new Error('User not found'), 'Credenciales inválidas', 401);
         }
 
         const match = await bcrypt.compare(password, user.password);
 
         if (!match) {
-            return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
+            return sendError(res, new Error('Invalid password'), 'Credenciales inválidas', 401);
         }
 
-        // Return user info (excluding password)
-        res.json({
-            success: true,
+        sendResponse(res, {
             user: {
                 id: user.id,
                 name: user.name,
@@ -229,53 +160,49 @@ app.post('/api/login', async (req, res) => {
                 permission_level: user.permission_level,
                 client_id: user.client_id
             }
-        });
+        }, "Login exitoso");
 
     } catch (error) {
-        console.error('Login Error:', error);
-        res.status(500).json({ success: false, message: 'Error en el servidor' });
+        sendError(res, error, 'Error en el login');
     }
 });
 
-// --- ENDPOINTS DE USUARIOS ---
+// --- ENPOINTS DE USUARIOS ---
 app.get('/api/users', async (req, res) => {
-    const { client_id, permission_level } = req.query; // Expecting these from frontend context
+    const { client_id, permission_level } = req.query;
 
     try {
         const pool = await poolPromise;
-        if (!pool) {
-            return res.status(503).json({ success: false, message: 'Database connection not available' });
-        }
+        if (!pool) return sendError(res, new Error('DB unavailable'), 'Sin conexión a base de datos', 503);
 
-        let query = 'SELECT id, name, role, permission_level, client_id FROM web_react_dashboard..users_main';
+        let query = QUERIES.GET_ALL_USERS;
         const request = pool.request();
 
-        // Si no es Super Admin (lvl 8), filtrar por cliente
         if (permission_level < 8) {
             request.input('client_id', sql.Int, client_id);
-            query += ' WHERE client_id = @client_id';
+            // Assuming GET_USERS_BY_CLIENT is "SELECT ... WHERE client_id = @client_id"
+            // But we need to make sure we use the right query based on condition
+            // In my sql_queries.js, I had GET_USERS_BY_CLIENT
+            query = QUERIES.GET_USERS_BY_CLIENT;
         }
 
         const result = await request.query(query);
-        res.json(result.recordset);
+        sendResponse(res, result.recordset, "Usuarios obtenidos");
     } catch (error) {
-        console.error('Database Error in GET /api/users:', error);
-        res.status(500).json({ success: false, message: 'Error retrieving users: ' + error.message });
+        sendError(res, error, 'Error obteniendo usuarios');
     }
 });
 
 app.post('/api/users', async (req, res) => {
     const { id, name, password, role, permission_level, client_id } = req.body;
     if (!id || !name || !password || !role) {
-        return res.status(400).json({ success: false, message: 'Faltan campos obligatorios' });
+        return sendError(res, new Error('Missing fields'), 'Faltan campos obligatorios', 400);
     }
     try {
         const pool = await poolPromise;
-        if (!pool) {
-            return res.status(503).json({ success: false, message: 'Database connection not available' });
-        }
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
+
         await pool.request()
             .input('id', sql.VarChar, id)
             .input('name', sql.VarChar, name)
@@ -283,15 +210,14 @@ app.post('/api/users', async (req, res) => {
             .input('role', sql.VarChar, role)
             .input('permission_level', sql.Int, permission_level || 1)
             .input('client_id', sql.Int, client_id || null)
-            .query('INSERT INTO web_react_dashboard..users_main (id, name, password, role, permission_level, client_id) VALUES (@id, @name, @password, @role, @permission_level, @client_id)');
+            .query(QUERIES.INSERT_USER);
 
-        res.json({ success: true, message: 'Usuario creado exitosamente', userId: id });
+        sendResponse(res, { userId: id }, "Usuario creado exitosamente");
     } catch (error) {
-        console.error('Database Error in POST /api/users:', error);
         if (error.number === 2627 || error.number === 2601) {
-            return res.status(409).json({ success: false, message: 'El ID de usuario ya existe' });
+            return sendError(res, error, 'El ID de usuario ya existe', 409);
         }
-        res.status(500).json({ success: false, message: 'Error en el servidor: ' + error.message });
+        sendError(res, error, 'Error creando usuario');
     }
 });
 
@@ -299,10 +225,10 @@ app.post('/api/users', async (req, res) => {
 app.get('/api/clients', async (req, res) => {
     try {
         const pool = await poolPromise;
-        const result = await pool.request().query('SELECT id, name FROM Clients');
-        res.json(result.recordset);
+        const result = await pool.request().query(QUERIES.GET_ALL_CLIENTS);
+        sendResponse(res, result.recordset, "Clientes obtenidos");
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        sendError(res, error, 'Error obteniendo clientes');
     }
 });
 
@@ -312,44 +238,37 @@ app.post('/api/clients', async (req, res) => {
         const pool = await poolPromise;
         await pool.request()
             .input('name', sql.VarChar, name)
-            .query('INSERT INTO Clients (name) VALUES (@name)');
-        res.json({ success: true, message: 'Cliente creado correctamente' });
+            .query(QUERIES.INSERT_CLIENT);
+        sendResponse(res, null, "Cliente creado correctamente");
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        sendError(res, error, 'Error creando cliente');
     }
 });
 
 // --- ENDPOINTS DE VACANTES (SOPHIA) ---
-
-// 1. POST /api/vacantes - Guarda vacante y condiciones iniciales
 app.post('/api/vacantes', async (req, res) => {
     let { nombre, sueldo, bono, horarios, beneficios, requisitos, documentacion, client_id } = req.body;
 
     if (!nombre || !client_id) {
-        return res.status(400).json({ success: false, message: 'El nombre y client_id son obligatorios' });
+        return sendError(res, new Error('Missing name or client_id'), 'Nombre y client_id obligatorios', 400);
     }
 
-    // Asegurar que sueldo y bono sean números o null (evitar error de string vacío en Decimal)
     sueldo = (sueldo && sueldo !== "") ? parseFloat(sueldo) : null;
     bono = (bono && bono !== "") ? parseFloat(bono) : null;
 
     try {
         const pool = await poolPromise;
-        if (!pool) return res.status(503).json({ success: false, message: 'Database connection not available' });
-
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
 
         try {
-            // Insertar Vacante
             const vacanteResult = await transaction.request()
                 .input('nombre', sql.VarChar, nombre)
                 .input('client_id', sql.Int, client_id)
-                .query('INSERT INTO Vacantes (nombre, client_id) OUTPUT INSERTED.id VALUES (@nombre, @client_id)');
+                .query(QUERIES.INSERT_VACANTE);
 
             const vacanteId = vacanteResult.recordset[0].id;
 
-            // Insertar Condiciones Generales
             await transaction.request()
                 .input('vacante_id', sql.Int, vacanteId)
                 .input('sueldo', sql.Decimal(18, 2), sueldo)
@@ -358,31 +277,26 @@ app.post('/api/vacantes', async (req, res) => {
                 .input('beneficios', sql.VarChar(sql.MAX), beneficios || null)
                 .input('requisitos', sql.VarChar(sql.MAX), requisitos || null)
                 .input('documentacion', sql.VarChar(sql.MAX), documentacion || null)
-                .query(`
-                    INSERT INTO CondicionesGenerales (vacante_id, sueldo, bono, horarios, beneficios, requisitos, documentacion)
-                    VALUES (@vacante_id, @sueldo, @bono, @horarios, @beneficios, @requisitos, @documentacion)
-                `);
+                .query(QUERIES.INSERT_CONDICIONES);
 
             await transaction.commit();
-            res.json({ success: true, message: 'Vacante creada exitosamente', vacanteId });
+            sendResponse(res, { vacanteId }, "Vacante creada exitosamente");
 
         } catch (err) {
             await transaction.rollback();
             throw err;
         }
     } catch (error) {
-        console.error('Error creating vacancy:', error);
-        res.status(500).json({ success: false, message: 'Error en el servidor: ' + error.message });
+        sendError(res, error, 'Error creando vacante');
     }
 });
 
-// 2. PUT /api/vacantes/:id/faq - Bulk insert/update FAQ
 app.put('/api/vacantes/:id/faq', async (req, res) => {
     const vacanteId = req.params.id;
-    const { faqs } = req.body; // Array de { pregunta, respuesta, palabras_clave }
+    const { faqs } = req.body;
 
     if (!Array.isArray(faqs)) {
-        return res.status(400).json({ success: false, message: 'Se requiere un array de FAQs' });
+        return sendError(res, new Error('Invalid FAQs'), 'Se requiere array de FAQs', 400);
     }
 
     try {
@@ -391,75 +305,55 @@ app.put('/api/vacantes/:id/faq', async (req, res) => {
         await transaction.begin();
 
         try {
-            // Limpiar FAQs anteriores para esta vacante (estrategia simple para bulk update)
             await transaction.request()
                 .input('vacante_id', sql.Int, vacanteId)
-                .query('DELETE FROM FAQ_Dinamico WHERE vacante_id = @vacante_id');
+                .query(QUERIES.DELETE_FAQ_BY_VACANTE);
 
-            // Insertar nuevas FAQs
             for (const item of faqs) {
                 await transaction.request()
                     .input('vacante_id', sql.Int, vacanteId)
                     .input('pregunta', sql.VarChar(sql.MAX), item.pregunta)
                     .input('respuesta', sql.VarChar(sql.MAX), item.respuesta)
                     .input('palabras_clave', sql.VarChar(sql.MAX), item.palabras_clave)
-                    .query(`
-                        INSERT INTO FAQ_Dinamico (vacante_id, pregunta, respuesta, palabras_clave)
-                        VALUES (@vacante_id, @pregunta, @respuesta, @palabras_clave)
-                    `);
+                    .query(QUERIES.INSERT_FAQ);
             }
 
             await transaction.commit();
-            res.json({ success: true, message: 'FAQs actualizadas correctamente' });
+            sendResponse(res, null, "FAQs actualizadas correctamente");
 
         } catch (err) {
             await transaction.rollback();
             throw err;
         }
     } catch (error) {
-        console.error('Error updating FAQs:', error);
-        res.status(500).json({ success: false, message: 'Error en el servidor: ' + error.message });
+        sendError(res, error, 'Error actualizando FAQs');
     }
 });
 
-// 3. GET /api/vacantes/:id/full - Consulta optimizada para Python
 app.get('/api/vacantes/:id/full', async (req, res) => {
     const vacanteId = req.params.id;
 
     try {
         const pool = await poolPromise;
-
-        // Ejecutamos tres consultas en paralelo o una consulta compleja
-        // Aquí usaremos JOINs y resultados estructurados
         const result = await pool.request()
             .input('vacante_id', sql.Int, vacanteId)
-            .query(`
-                SELECT 
-                    v.id, v.nombre, v.fecha_creacion, v.estado,
-                    c.sueldo, c.bono, c.horarios, c.beneficios, c.requisitos, c.documentacion,
-                    (SELECT pregunta, respuesta, palabras_clave FROM FAQ_Dinamico WHERE vacante_id = v.id FOR JSON PATH) as faqs
-                FROM Vacantes v
-                LEFT JOIN CondicionesGenerales c ON v.id = c.vacante_id
-                WHERE v.id = @vacante_id
-            `);
+            .query(QUERIES.GET_FULL_VACANCY);
 
         const vacancy = result.recordset[0];
         if (!vacancy) {
-            return res.status(404).json({ success: false, message: 'Vacante no encontrada' });
+            return sendError(res, new Error('Not found'), 'Vacante no encontrada', 404);
         }
 
-        // Parsear el string JSON de faqs si existe
         if (vacancy.faqs) {
             vacancy.faqs = JSON.parse(vacancy.faqs);
         } else {
             vacancy.faqs = [];
         }
 
-        res.json({ success: true, data: vacancy });
+        sendResponse(res, vacancy, "Información completa de vacante obtenida");
 
     } catch (error) {
-        console.error('Error retrieving full vacancy:', error);
-        res.status(500).json({ success: false, message: 'Error en el servidor: ' + error.message });
+        sendError(res, error, 'Error obteniendo detalle de vacante');
     }
 });
 
@@ -468,10 +362,8 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-// Export app for Vercel
 export default app;
 
-// Only listen on port if not running on Vercel
 if (!process.env.VERCEL) {
     app.listen(PORT, () => {
         console.log(`Servidor backend corriendo en http://localhost:${PORT}`);
