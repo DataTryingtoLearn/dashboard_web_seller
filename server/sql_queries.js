@@ -1,5 +1,5 @@
 export const QUERIES = {
-    // Lead Counts & Stats
+
     GET_LEADS_COUNT: 'SELECT COUNT(distinct remitente_wa_id) as total FROM bbdd_sophia..conversaciones where fecha_mensaje >= CONVERT(date, GETDATE() - 7) ;',
     GET_CONTACTED_COUNT: `
         SELECT COUNT(*) AS count 
@@ -31,7 +31,7 @@ export const QUERIES = {
     GET_WEEKLY_LEADS: `
         SELECT
             LEFT(DATENAME(WEEKDAY, fecha_mensaje), 3) AS name,
-            COUNT(*) AS leads
+            COUNT(distinct remitente_wa_id) AS leads
         FROM bbdd_sophia..conversaciones
         WHERE fecha_mensaje >= DATEADD(DAY, -7, CONVERT(date, GETDATE()))
         GROUP BY DATENAME(WEEKDAY, fecha_mensaje), DATEPART(WEEKDAY, fecha_mensaje)
@@ -46,17 +46,17 @@ export const QUERIES = {
         ORDER BY fecha_mensaje DESC;
     `,
 
-    // Auth & Users
+
     GET_USER_BY_ID: 'SELECT id, name, password, role FROM web_react_dashboard..users_main WHERE id = @id',
     GET_ALL_USERS: 'SELECT id, name, role, permission_level, client_id FROM web_react_dashboard..users_main',
     GET_USERS_BY_CLIENT: 'SELECT id, name, role, permission_level, client_id FROM web_react_dashboard..users_main WHERE client_id = @client_id',
     INSERT_USER: 'INSERT INTO web_react_dashboard..users_main (id, name, password, role, permission_level, client_id) VALUES (@id, @name, @password, @role, @permission_level, @client_id)',
 
-    // Clients
+
     GET_ALL_CLIENTS: 'SELECT id, name FROM Clients',
     INSERT_CLIENT: 'INSERT INTO Clients (name) VALUES (@name)',
 
-    // Vacancies
+
     INSERT_VACANTE: 'INSERT INTO Vacantes (nombre, client_id) OUTPUT INSERTED.id VALUES (@nombre, @client_id)',
     INSERT_CONDICIONES: `
         INSERT INTO CondicionesGenerales (vacante_id, sueldo, bono, horarios, beneficios, requisitos, documentacion)
