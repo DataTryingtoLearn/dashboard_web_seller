@@ -2,9 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import UserDashboard from './pages/UserDashboard';
 import UsersPage from './pages/UsersPage';
-import VacanciesPage from './pages/VacanciesPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import { useAuth } from './context/AuthContext';
+import ChatsPage from './pages/ChatsPage';
 
 const ProtectedRoute = ({ children }) => {
     const { user } = useAuth();
@@ -14,7 +14,6 @@ const ProtectedRoute = ({ children }) => {
     return children;
 };
 
-// Admin only route protector
 const AdminRoute = ({ children }) => {
     const { user } = useAuth();
     if (user?.role !== 'admin') {
@@ -35,14 +34,16 @@ function App() {
                     </ProtectedRoute>
                 }>
                     <Route index element={<UserDashboard />} />
+
                     <Route path="users" element={
                         <AdminRoute>
                             <UsersPage />
                         </AdminRoute>
                     } />
-                    <Route path="vacancies" element={
+
+                    <Route path="chats" element={
                         <AdminRoute>
-                            <VacanciesPage />
+                            <ChatsPage />
                         </AdminRoute>
                     } />
                 </Route>

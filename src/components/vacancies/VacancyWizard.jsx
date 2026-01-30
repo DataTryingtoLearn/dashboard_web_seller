@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import FAQTable from './FAQTable';
 import { useAuth } from '../../context/AuthContext';
 
-const VacancyWizard = () => {
+const VacancyWizard = ({ onComplete }) => {
     const { user } = useAuth();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -17,10 +17,23 @@ const VacancyWizard = () => {
         horarios: '',
         beneficios: '',
         requisitos: '',
-        documentacion: ''
+        documentacion: '',
+        client_id: user?.client_id || ''
     });
 
     const [faqs, setFaqs] = useState([]);
+    const [clients, setClients] = useState([]);
+    const isSuperAdmin = Number(user?.permission_level) >= 8;
+
+    React.useEffect(() => {
+        if (isSuperAdmin) {
+            fetch('/api/clients')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) setClients(data.data);
+                });
+        }
+    }, []);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -29,6 +42,12 @@ const VacancyWizard = () => {
 
     const handleNextStep = async (e) => {
         e.preventDefault();
+
+        if (isSuperAdmin && !formData.client_id) {
+            setError('Por favor selecciona un cliente para la vacante');
+            return;
+        }
+
         if (step === 1) {
             setLoading(true);
             setError('');
@@ -36,10 +55,7 @@ const VacancyWizard = () => {
                 const response = await fetch('/api/vacantes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ...formData,
-                        client_id: user?.client_id
-                    })
+                    body: JSON.stringify(formData)
                 });
                 const data = await response.json();
                 if (data.success) {
@@ -63,7 +79,10 @@ const VacancyWizard = () => {
             const response = await fetch(`/api/vacantes/${vacanteId}/faq`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ faqs })
+                body: JSON.stringify({
+                    faqs,
+                    cliente_id: formData.client_id
+                })
             });
             const data = await response.json();
             if (data.success) {
@@ -88,12 +107,20 @@ const VacancyWizard = () => {
                 </div>
                 <h2 className="text-2xl font-bold text-slate-100 mb-2">¡Vacante Creada con Éxito!</h2>
                 <p className="text-slate-400 mb-6">La vacante y sus preguntas frecuentes han sido registradas en el sistema Sophia.</p>
-                <button
-                    onClick={() => { setSuccess(false); setStep(1); setFormData({ nombre: '', sueldo: '', bono: '', horarios: '', beneficios: '', requisitos: '', documentacion: '' }); setFaqs([]); }}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                    Crear otra vacante
-                </button>
+                <div className="flex gap-4 justify-center">
+                    <button
+                        onClick={() => { setSuccess(false); setStep(1); setFormData({ nombre: '', sueldo: '', bono: '', horarios: '', beneficios: '', requisitos: '', documentacion: '' }); setFaqs([]); }}
+                        className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
+                    >
+                        Crear otra
+                    </button>
+                    <button
+                        onClick={onComplete}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                        Volver al listado
+                    </button>
+                </div>
             </div>
         );
     }
@@ -130,6 +157,51 @@ const VacancyWizard = () => {
                                 placeholder="Ej. Desarrollador React"
                             />
                         </div>
+                        {isSuperAdmin ? (
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-400">Asignar a Cliente</label>
+                                <select
+                                    name="client_id"
+                                    required
+                                    value={formData.client_id}
+                                    onChange={handleInputChange}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
+                                >
+                                    <option value="">Selecciona un cliente...</option>
+                                    {clients.map(client => (
+                                        <option key={client.id} value={client.id}>{client.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-400">Sueldo Mensual</label>
+                                    <input
+                                        type="number"
+                                        name="sueldo"
+                                        value={formData.sueldo}
+                                        onChange={handleInputChange}
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-400">Bono</label>
+                                    <input
+                                        type="number"
+                                        name="bono"
+                                        value={formData.bono}
+                                        onChange={handleInputChange}
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {isSuperAdmin && (
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-400">Sueldo Mensual</label>
@@ -154,7 +226,7 @@ const VacancyWizard = () => {
                                 />
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-slate-400">Horarios</label>

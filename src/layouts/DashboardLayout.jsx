@@ -6,7 +6,7 @@ import {
     Users,
     LogOut,
     Menu,
-    Briefcase
+    MessageCircle
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
@@ -38,12 +38,12 @@ const DashboardLayout = () => {
 
     const getNavItems = () => {
         const items = [
-            { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+            { label: 'Dashboard', icon: LayoutDashboard, path: '/' }
         ];
 
         if (user?.role === 'admin') {
+            items.push({ label: 'Mensajes', icon: MessageCircle, path: '/chats' });
             items.push({ label: 'Usuarios', icon: Users, path: '/users' });
-            items.push({ label: 'Vacantes', icon: Briefcase, path: '/vacancies' });
         }
 
         return items;
@@ -51,7 +51,7 @@ const DashboardLayout = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
-            {/* Sidebar */}
+            {/* Sidebar que incluye los items del menu  */}
             <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
                 <div className="p-6">
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
@@ -96,9 +96,7 @@ const DashboardLayout = () => {
                 </div>
             </aside>
 
-            {/* Main Content */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                {/* Mobile Header */}
                 <header className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
                     <h1 className="text-xl font-bold text-primary">Sophia</h1>
                     <Button variant="ghost" size="icon">

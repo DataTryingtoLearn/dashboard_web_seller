@@ -1,5 +1,5 @@
 
-import React, { useRef, useState } from 'react'; // Añadimos useState
+import React, { useRef, useState } from 'react';
 import mammoth from 'mammoth';
 
 const FAQTable = ({ faqs, onFaqsChange }) => {
@@ -27,25 +27,16 @@ const FAQTable = ({ faqs, onFaqsChange }) => {
         reader.onload = async (event) => {
             const arrayBuffer = event.target.result;
             try {
-                // 1. Extraemos el texto crudo del Word
                 const result = await mammoth.extractRawText({ arrayBuffer });
                 const text = result.value;
 
-                // 2. Separamos por líneas y limpiamos
                 const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
 
                 const newFaqs = lines.map(line => {
-                    // Usamos una expresión regular para separar por comas 
-                    // pero respetando el texto que está entre comillas
                     const parts = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g) || line.split(',');
 
-                    // Limpiamos las comillas sobrantes de cada parte
                     const cleanParts = parts.map(p => p.trim().replace(/^"|"$/g, ''));
 
-                    // Según tu archivo FAQ dinámico_ ATC.docx:
-                    // Columna 0: Título/Pregunta Corta
-                    // Columna 1: La respuesta larga (OPCIÓN)
-                    // Columna 2: Palabras Clave
                     return {
                         pregunta: cleanParts[0] || '',
                         respuesta: cleanParts[1] || '',
@@ -75,7 +66,6 @@ const FAQTable = ({ faqs, onFaqsChange }) => {
                 <label className="text-sm font-medium text-slate-400">Preguntas Frecuentes Dinámicas</label>
 
                 <div className="flex gap-2">
-                    {/* Input oculto para subir archivo */}
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -88,7 +78,7 @@ const FAQTable = ({ faqs, onFaqsChange }) => {
                         onClick={() => fileInputRef.current.click()}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-400 border border-emerald-400/30 rounded-lg hover:bg-emerald-400/10 transition-colors"
                     >
-                        📁 Importar Word
+                        Importar Word
                     </button>
 
                     <button
@@ -96,7 +86,7 @@ const FAQTable = ({ faqs, onFaqsChange }) => {
                         onClick={addRow}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-400 border border-blue-400/30 rounded-lg hover:bg-blue-400/10 transition-colors"
                     >
-                        ➕ Agregar Fila
+                        + Agregar Fila
                     </button>
                 </div>
             </div>

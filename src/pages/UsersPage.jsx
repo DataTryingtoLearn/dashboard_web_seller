@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, UserPlus, Trash2, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { useAuth } from '../context/AuthContext';
 
 const UsersPage = () => {
     const { user: currentUser } = useAuth();
@@ -17,6 +18,10 @@ const UsersPage = () => {
         client_id: currentUser?.client_id || ''
     });
     const [message, setMessage] = useState({ type: '', text: '' });
+
+    const [editingUser, setEditingUser] = useState(null);
+    const [passwordUser, setPasswordUser] = useState(null);
+    const [newPass, setNewPass] = useState('');
 
     const fetchUsers = async () => {
         try {
@@ -88,6 +93,58 @@ const UsersPage = () => {
             setMessage({ type: 'error', text: 'Error de conexión con el servidor' });
         }
     };
+
+    const handleEditClick = (user) => {
+        setEditingUser({ ...user });
+    };
+
+    const handleUpdateUser = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch(`/api/users/${editingUser.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editingUser)
+            });
+            const data = await res.json();
+            if (data.success) {
+                setEditingUser(null);
+                fetchUsers();
+                alert("Usuario actualizado correctamente");
+            } else {
+                alert("Error al actualizar: " + data.message);
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Error de conexión");
+        }
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        if (!newPass) return;
+
+        try {
+            const res = await fetch(`/api/users/${passwordUser.id}/password`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: newPass })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setPasswordUser(null);
+                setNewPass('');
+                alert("Contraseña actualizada exitosamente");
+            } else {
+                alert("Error: " + data.message);
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Error al cambiar contraseña");
+        }
+    };
+
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -198,6 +255,67 @@ const UsersPage = () => {
                 </div>
             )}
 
+            {editingUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
+                        <h3 className="text-lg font-bold mb-4">Editar Usuario: {editingUser.id}</h3>
+                        <form onSubmit={handleUpdateUser} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Nombre</label>
+                                <input
+                                    className="w-full p-2 border rounded dark:bg-gray-700"
+                                    value={editingUser.name}
+                                    onChange={e => setEditingUser({ ...editingUser, name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Nivel Permiso</label>
+                                <select
+                                    className="w-full p-2 border rounded dark:bg-gray-700"
+                                    value={editingUser.permission_level}
+                                    onChange={e => setEditingUser({ ...editingUser, permission_level: parseInt(e.target.value) })}
+                                >
+                                    <option value="1">Nivel 1 (Usuario)</option>
+                                    <option value="3">Nivel 3 (Analista)</option>
+                                    <option value="6">Nivel 6 (Admin Cliente)</option>
+                                    {currentUser?.permission_level === 8 && <option value="8">Nivel 8 (Super Admin)</option>}
+                                </select>
+                            </div>
+                            <div className="flex justify-end space-x-2 pt-2">
+                                <Button variant="ghost" type="button" onClick={() => setEditingUser(null)}>Cancelar</Button>
+                                <Button type="submit">Guardar Cambios</Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {passwordUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-sm shadow-2xl">
+                        <h3 className="text-lg font-bold mb-4">Cambiar Contraseña</h3>
+                        <p className="text-sm text-gray-500 mb-4">Usuario: {passwordUser.name} ({passwordUser.id})</p>
+                        <form onSubmit={handleChangePassword} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Nueva Contraseña</label>
+                                <input
+                                    type="password"
+                                    className="w-full p-2 border rounded dark:bg-gray-700"
+                                    placeholder="Nueva contraseña"
+                                    value={newPass}
+                                    onChange={e => setNewPass(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="flex justify-end space-x-2 pt-2">
+                                <Button variant="ghost" type="button" onClick={() => { setPasswordUser(null); setNewPass(''); }}>Cancelar</Button>
+                                <Button type="submit" className="bg-red-600 hover:bg-red-700 text-white">Actualizar</Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -208,21 +326,20 @@ const UsersPage = () => {
                                 {currentUser?.permission_level === 8 && (
                                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
                                 )}
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={currentUser?.permission_level === 8 ? "5" : "4"} className="px-6 py-10 text-center text-gray-400">
+                                    <td colSpan={currentUser?.permission_level === 8 ? "4" : "3"} className="px-6 py-10 text-center text-gray-400">
                                         Cargando usuarios...
                                     </td>
                                 </tr>
                             ) : users.length === 0 ? (
                                 <tr>
-                                    <td colSpan={currentUser?.permission_level === 8 ? "5" : "4"} className="px-6 py-10 text-center text-gray-400">
-                                        No hay usuarios registrados aparte del sistema principal.
+                                    <td colSpan={currentUser?.permission_level === 8 ? "4" : "3"} className="px-6 py-10 text-center text-gray-400">
+                                        No hay usuarios registrados.
                                     </td>
                                 </tr>
                             ) : (
@@ -251,15 +368,12 @@ const UsersPage = () => {
                                                 {clients.find(c => c.id === u.client_id)?.name || 'Sin Asignar'}
                                             </td>
                                         )}
-                                        <td className="px-6 py-4">
-                                            <span className="inline-flex items-center text-xs text-green-600">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-2"></div>
-                                                Activo
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-red-600">
-                                                <Trash2 className="w-4 h-4" />
+                                        <td className="px-6 py-4 flex space-x-2">
+                                            <Button variant="ghost" size="sm" onClick={() => handleEditClick(u)} className="text-blue-600 hover:bg-blue-50">
+                                                Editar
+                                            </Button>
+                                            <Button variant="ghost" size="sm" onClick={() => setPasswordUser(u)} className="text-amber-600 hover:bg-amber-50">
+                                                Cambiar Contraseña
                                             </Button>
                                         </td>
                                     </tr>

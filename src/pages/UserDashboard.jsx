@@ -2,8 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { StatCard } from '../components/ui/StatCard';
 import { Users, MessageSquare, CheckCircle, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useNavigate } from 'react-router-dom';
+
+import { useAuth } from '../context/AuthContext';
 
 const UserDashboard = () => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const [stats, setStats] = useState({
         total: 'Cargando...',
         contacted: '0',
@@ -15,9 +20,7 @@ const UserDashboard = () => {
 
     useEffect(() => {
         const fetchAllStats = async () => {
-            console.log("DASHBOARD: Iniciando carga de datos...");
             try {
-                // Fetch each one individually or with Promise.all
                 const [
                     totalRes,
                     contactedRes,
@@ -34,23 +37,12 @@ const UserDashboard = () => {
                     fetch('/api/leads/recent')
                 ]);
 
-                console.log("DASHBOARD: Respuestas recibidas", {
-                    total: totalRes.status,
-                    weekly: weeklyRes.status,
-                    recent: recentRes.status
-                });
-
                 const totalJson = await totalRes.json();
                 const contactedJson = await contactedRes.json();
                 const conversionsJson = await conversionsRes.json();
                 const avgTimeJson = await avgTimeRes.json();
                 const weeklyJson = await weeklyRes.json();
                 const recentJson = await recentRes.json();
-
-                console.log("DASHBOARD: Datos JSON parseados:", {
-                    weeklyCount: weeklyJson.data?.length,
-                    recentCount: recentJson.data?.length
-                });
 
                 setStats({
                     total: Number(totalJson?.data?.count ?? 0).toLocaleString(),
@@ -61,26 +53,26 @@ const UserDashboard = () => {
 
                 if (weeklyJson.success && Array.isArray(weeklyJson.data)) {
                     setWeeklyData(weeklyJson.data);
-                } else {
-                    console.warn("DASHBOARD: Datos semanales no válidos", weeklyJson);
                 }
 
                 if (recentJson.success && Array.isArray(recentJson.data)) {
                     setRecentActivity(recentJson.data);
-                } else {
-                    console.warn("DASHBOARD: Actividad reciente no válida", recentJson);
                 }
 
             } catch (error) {
-                console.error("DASHBOARD: Error fatal cargando estadísticas:", error);
             }
         };
 
         fetchAllStats();
     }, []);
 
+    const handleViewConversation = (wa_id) => {
+        if (!wa_id) return;
+        navigate(`/chats?id=${wa_id}`);
+    };
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 relative">
             <div className="flex flex-col space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Dashboard</h2>
                 <p className="text-gray-500 dark:text-gray-400">
@@ -120,7 +112,6 @@ const UserDashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Gráfico Semanal */}
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                     <h3 className="text-lg font-semibold mb-6 text-gray-900 dark:text-white">Leads por Semana</h3>
                     <div className="h-[300px]">
@@ -161,21 +152,29 @@ const UserDashboard = () => {
                     </div>
                 </div>
 
-                {/* Actividad Reciente */}
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                     <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Actividad Reciente</h3>
                     <div className="space-y-4">
                         {recentActivity.length > 0 ? (
                             recentActivity.map((activity, idx) => (
-                                <div key={activity.id || idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                                    <div className="flex items-center space-x-3">
-                                        <div className="w-2 h-2 rounded-full bg-green-500" />
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-900 dark:text-white">{activity.message}</p>
+                                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                                    <div className="flex items-center space-x-3 overflow-hidden">
+                                        <div className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={activity.message}>
+                                                {activity.message}
+                                            </p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400">{activity.time}</p>
                                         </div>
                                     </div>
-                                    <span className="text-xs font-semibold text-blue-600">Ver</span>
+                                    {Number(user?.permission_level) > 1 && (
+                                        <button
+                                            onClick={() => handleViewConversation(activity.remitente_wa_id)}
+                                            className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20"
+                                        >
+                                            Ver
+                                        </button>
+                                    )}
                                 </div>
                             ))
                         ) : (

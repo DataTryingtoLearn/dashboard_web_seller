@@ -1,154 +1,153 @@
-[
-    {
-        "endpoint": "GET /api/leads/count",
-        "description": "Obtiene el conteo total de leads (conversaciones únicas) en los últimos 7 días.",
-        "input": {},
-        "output": {
-            "success": true,
-            "data": {
-                "count": 142
+{
+    "api_version": "1.2.0",
+    "base_url": "/api",
+    "endpoints": {
+        "Leads & Metrics": [
+            {
+                "path": "/leads/count",
+                "method": "GET",
+                "description": "Obtiene el conteo total de leads únicos en los últimos 7 días.",
+                "response": "{ success: true, data: { count: number }, message: string }"
             },
-            "message": "Conteo obtenido correctamente"
-        },
-        "sql_logic": "SELECT COUNT(distinct remitente_wa_id) as total FROM bbdd_sophia..conversaciones where fecha_mensaje >= CONVERT(date, GETDATE() - 7)"
-    },
-    {
-        "endpoint": "GET /api/leads/contacted",
-        "description": "Obtiene el número de conversiones iniciadas en los últimos 7 días.",
-        "input": {},
-        "output": {
-            "success": true,
-            "data": {
-                "count": 85
+            {
+                "path": "/leads/contacted",
+                "method": "GET",
+                "description": "Obtiene el total de mensajes contactados en los últimos 7 días.",
+                "response": "{ success: true, data: { count: number } }"
             },
-            "message": "Leads contactados obtenidos"
-        },
-        "sql_logic": "SELECT COUNT(*) FROM bbdd_sophia..conversaciones WHERE fecha_mensaje >= CONVERT(date, GETDATE() - 7)"
-    },
-    {
-        "endpoint": "GET /api/leads/conversions",
-        "description": "Obtiene el número de citas agendadas en los últimos 7 días.",
-        "input": {},
-        "output": {
-            "success": true,
-            "data": {
-                "count": 12
+            {
+                "path": "/leads/conversions",
+                "method": "GET",
+                "description": "Obtiene el total de citas/conversiones en los últimos 7 días.",
+                "response": "{ success: true, data: { count: number } }"
             },
-            "message": "Conversiones obtenidas"
-        },
-        "sql_logic": "SELECT COUNT(*) FROM bbdd_sophia..tb_citas WHERE fecha_mensaje >= CONVERT(date, GETDATE() - 7)"
-    },
-    {
-        "endpoint": "GET /api/leads/avg-time",
-        "description": "Calcula el tiempo promedio de respuesta en minutos.",
-        "input": {},
-        "output": {
-            "success": true,
-            "data": {
-                "value": "15m"
+            {
+                "path": "/leads/avg-time",
+                "method": "GET",
+                "description": "Calcula el tiempo promedio de respuesta en minutos.",
+                "response": "{ success: true, data: { value: string } }"
             },
-            "message": "Tiempo promedio calculado"
-        },
-        "sql_logic": "Calculated via LAG() window function on conversations table."
-    },
-    {
-        "endpoint": "GET /api/leads/weekly",
-        "description": "Obtiene la cantidad de leads agrupados por día de la semana (últimos 7 días).",
-        "input": {},
-        "output": {
-            "success": true,
-            "data": [
-                {
-                    "name": "Mon",
-                    "leads": 20
-                },
-                {
-                    "name": "Tue",
-                    "leads": 35
-                }
-            ],
-            "message": "Datos semanales obtenidos"
-        },
-        "sql_logic": "GROUP BY DATENAME(WEEKDAY, fecha_mensaje)"
-    },
-    {
-        "endpoint": "GET /api/leads/recent",
-        "description": "Obtiene los mensajes más recientes.",
-        "input": {},
-        "output": {
-            "success": true,
-            "data": [
-                {
-                    "message": "Hola, info?",
-                    "time": "10:30"
-                }
-            ],
-            "message": "Actividad reciente obtenida"
-        },
-        "sql_logic": "SELECT TOP N ... ORDER BY fecha_mensaje DESC"
-    },
-    {
-        "endpoint": "POST /api/login",
-        "description": "Autentica a un usuario.",
-        "input": {
-            "id": "E029863",
-            "password": "password123"
-        },
-        "output": {
-            "success": true,
-            "data": {
-                "user": {
-                    "id": "E029863",
-                    "name": "Admin",
-                    "role": "admin",
-                    "permission_level": 8,
-                    "client_id": null
+            {
+                "path": "/leads/weekly",
+                "method": "GET",
+                "description": "Datos para el gráfico semanal de leads.",
+                "response": "{ success: true, data: Array<{ name: string, leads: number }> }"
+            }
+        ],
+        "Chat & Messaging": [
+            {
+                "path": "/leads/chats",
+                "method": "GET",
+                "description": "Lista de conversaciones para la sidebar del chat.",
+                "response": "{ success: true, data: Array<{ remitente_wa_id: string, last_interaction: date, last_incoming: date }> }"
+            },
+            {
+                "path": "/leads/:wa_id/conversation",
+                "method": "GET",
+                "description": "Historial completo de mensajes de un usuario de WhatsApp.",
+                "params": {
+                    "wa_id": "ID de WhatsApp del remitente"
                 }
             },
-            "message": "Login exitoso"
-        },
-        "sql_logic": "SELECT * FROM users_main WHERE id = @id"
-    },
-    {
-        "endpoint": "GET /api/users",
-        "description": "Obtiene lista de usuarios. Filtra por cliente si no es super admin.",
-        "input": {
-            "client_id": "1 (opcional)",
-            "permission_level": "8 (opcional)"
-        },
-        "output": {
-            "success": true,
-            "data": [
-                {
-                    "id": "E123",
-                    "name": "Juan",
-                    "role": "user"
+            {
+                "path": "/messages/outbound",
+                "method": "POST",
+                "description": "Registra un mensaje en la tabla mensajes_out para envío manual.",
+                "body": {
+                    "wa_id": "string",
+                    "message": "string"
                 }
-            ],
-            "message": "Usuarios obtenidos"
-        },
-        "sql_logic": "SELECT * FROM users_main [WHERE client_id = @id]"
-    },
-    {
-        "endpoint": "POST /api/vacantes",
-        "description": "Crea una nueva vacante y sus condiciones generales.",
-        "input": {
-            "nombre": "Developer",
-            "client_id": 1,
-            "sueldo": 50000,
-            "bono": 5000,
-            "horarios": "9-6",
-            "beneficios": "Gym",
-            "requisitos": "React",
-            "documentacion": "INE"
-        },
-        "output": {
-            "success": true,
-            "data": {
-                "vacanteId": 105
+            }
+        ],
+        "Vacancies (Sophia)": [
+            {
+                "path": "/vacantes",
+                "method": "GET",
+                "description": "Lista de vacantes activa. Filtrado por cliente para Admin/Analista.",
+                "query": {
+                    "permission_level": "Nivel de acceso",
+                    "client_id": "ID del cliente (propietario)",
+                    "search_id_cliente": "Opcional: ID para búsqueda de SuperAdmin"
+                }
             },
-            "message": "Vacante creada exitosamente"
-        },
-        "sql_logic": "INSERT INTO Vacantes... INSERT INTO CondicionesGenerales..."
+            {
+                "path": "/vacantes",
+                "method": "POST",
+                "description": "Crea una nueva vacante y sus condiciones generales (Transaccional).",
+                "body": {
+                    "nombre": "string",
+                    "client_id": "number",
+                    "sueldo": "number?",
+                    "horarios": "string?",
+                    "beneficios": "string?"
+                }
+            },
+            {
+                "path": "/vacantes/:id/faq",
+                "method": "PUT",
+                "description": "Actualiza el set de preguntas frecuentes dinámicas de una vacante.",
+                "body": {
+                    "faqs": "Array<item>",
+                    "cliente_id": "number"
+                }
+            },
+            {
+                "path": "/vacantes/:id/full",
+                "method": "GET",
+                "description": "Obtiene todo el conocimiento (condiciones + FAQs) de una vacante."
+            }
+        ],
+        "User Management": [
+            {
+                "path": "/login",
+                "method": "POST",
+                "description": "Autenticación de usuarios. Soporta ID y Password (bcrypt).",
+                "body": {
+                    "id": "string",
+                    "password": "password"
+                }
+            },
+            {
+                "path": "/users",
+                "method": "GET",
+                "description": "Lista de usuarios del sistema.",
+                "query": {
+                    "client_id": "filtro",
+                    "permission_level": "permiso"
+                }
+            },
+            {
+                "path": "/users",
+                "method": "POST",
+                "description": "Crea un nuevo usuario con contraseña hasheada.",
+                "body": {
+                    "id": "string",
+                    "name": "string",
+                    "password": "...",
+                    "client_id": "number"
+                }
+            },
+            {
+                "path": "/logs",
+                "method": "GET",
+                "description": "Historial de auditoría (Logins, acciones críticas)."
+            }
+        ],
+        "Clients": [
+            {
+                "path": "/clients",
+                "method": "GET",
+                "description": "Lista de clientes registrados (Solo SuperAdmin)."
+            },
+            {
+                "path": "/clients",
+                "method": "POST",
+                "description": "Registra una nueva empresa/cliente.",
+                "body": {
+                    "name": "string",
+                    "admin_id": "ID del ejecutor"
+                }
+            }
+        ]
     }
-]
+}

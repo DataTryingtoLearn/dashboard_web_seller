@@ -5,7 +5,7 @@
     "type": "module",
     "scripts": {
         "server": "node server/index.js",
-        "client": "vite",
+        "client": "vite --host",
         "dev": "concurrently --kill-others \"npm run server\" \"npm run client\"",
         "build": "vite build",
         "lint": "eslint .",

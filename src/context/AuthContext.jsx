@@ -6,7 +6,6 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Check for stored session on mount
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
