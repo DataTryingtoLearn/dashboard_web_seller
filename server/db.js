@@ -4,8 +4,8 @@ dotenv.config();
 
 const config = {
     user: process.env.DB_USER || 'E029863',
-    password: process.env.DB_PASSWORD || 'E0298631',
-    server: process.env.DB_HOST || '10.128.156.119',
+    password: process.env.DB_PASSWORD || 'E029863',
+    server: process.env.DB_HOST || '10.52.108.12',
     database: process.env.DB_NAME || 'web_react_dashboard',
     options: {
         encrypt: false,

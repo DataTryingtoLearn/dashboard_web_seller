@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import FAQTable from './FAQTable';
 import { useAuth } from '../../context/AuthContext';
+import { sileo } from 'sileo';
+import { Plus, Check, AlertCircle, Sparkles } from 'lucide-react';
 
 const VacancyWizard = ({ onComplete }) => {
     const { user } = useAuth();
@@ -60,11 +62,25 @@ const VacancyWizard = ({ onComplete }) => {
                 const data = await response.json();
                 if (data.success) {
                     setVacanteId(data.data.vacanteId);
+                    sileo.success({
+                        title: "Vacante Registrada",
+                        description: "Detalles básicos guardados. Ahora configura las FAQs.",
+                        icon: <Check className="text-emerald-500" size={18} />
+                    });
                     setStep(2);
                 } else {
+                    sileo.error({
+                        title: "Error al Guardar",
+                        description: data.message || "No se pudo registrar la vacante.",
+                        icon: <AlertCircle className="text-red-500" size={18} />
+                    });
                     setError(data.message || 'Error al guardar la vacante');
                 }
             } catch (err) {
+                sileo.error({
+                    title: "Error de Conexión",
+                    description: "No se pudo conectar con el servidor.",
+                });
                 setError('Error de conexión con el servidor');
             } finally {
                 setLoading(false);
@@ -86,11 +102,24 @@ const VacancyWizard = ({ onComplete }) => {
             });
             const data = await response.json();
             if (data.success) {
+                sileo.success({
+                    title: "¡Todo Listo!",
+                    description: "La vacante está activa y disponible en MIA.",
+                    icon: <Sparkles className="text-primary animate-pulse" size={18} />
+                });
                 setSuccess(true);
             } else {
+                sileo.error({
+                    title: "Error en FAQs",
+                    description: data.message || "No se pudieron guardar las preguntas frecuentes."
+                });
                 setError(data.message || 'Error al guardar las FAQs');
             }
         } catch (err) {
+            sileo.error({
+                title: "Error Crítico",
+                description: "Falló la comunicación con el servidor al finalizar."
+            });
             setError('Error de conexión con el servidor');
         } finally {
             setLoading(false);
@@ -106,7 +135,7 @@ const VacancyWizard = ({ onComplete }) => {
                     </svg>
                 </div>
                 <h2 className="text-2xl font-bold text-slate-100 mb-2">¡Vacante Creada con Éxito!</h2>
-                <p className="text-slate-400 mb-6">La vacante y sus preguntas frecuentes han sido registradas en el sistema Sophia.</p>
+                <p className="text-slate-400 mb-6">La vacante y sus preguntas frecuentes han sido registradas en el sistema Mía.</p>
                 <div className="flex gap-4 justify-center">
                     <button
                         onClick={() => { setSuccess(false); setStep(1); setFormData({ nombre: '', sueldo: '', bono: '', horarios: '', beneficios: '', requisitos: '', documentacion: '' }); setFaqs([]); }}
@@ -128,7 +157,7 @@ const VacancyWizard = ({ onComplete }) => {
     return (
         <div className="max-w-4xl mx-auto mt-10 p-8 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
             <div className="flex items-center justify-between mb-8">
-                <h2 className="text-2xl font-bold text-slate-100">Diseño de Vacante - Proyecto Sophia</h2>
+                <h2 className="text-2xl font-bold text-slate-100">Diseño de Vacante - Proyecto Mía</h2>
                 <div className="flex items-center gap-2">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === 1 ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`}>1</div>
                     <div className="w-8 h-px bg-slate-700"></div>

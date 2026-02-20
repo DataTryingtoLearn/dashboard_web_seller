@@ -1,27 +1,45 @@
-import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, Trash2, ShieldCheck } from 'lucide-react';
+import React, { useEffect, useReducer } from 'react';
+import { UserPlus } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
+import UserForm from '../components/users/UserForm';
+import UserTable from '../components/users/UserTable';
+import { EditUserModal, PasswordModal } from '../components/users/UserModals';
+
+const initialState = {
+    users: [],
+    clients: [],
+    isLoading: true,
+    showForm: false,
+    formData: { id: '', name: '', password: '', role: 'user', permission_level: 1, client_id: '' },
+    message: { type: '', text: '' },
+    editingUser: null,
+    passwordUser: null,
+    newPass: ''
+};
+
+function reducer(state, action) {
+    switch (action.type) {
+        case 'SET_USERS': return { ...state, users: action.payload, isLoading: false };
+        case 'SET_CLIENTS': return { ...state, clients: action.payload };
+        case 'TOGGLE_FORM': return { ...state, showForm: !state.showForm, message: { type: '', text: '' } };
+        case 'SET_FORM_DATA': return { ...state, formData: { ...state.formData, ...action.payload } };
+        case 'RESET_FORM': return { ...state, formData: initialState.formData, showForm: false };
+        case 'SET_MESSAGE': return { ...state, message: action.payload };
+        case 'SET_EDITING_USER': return { ...state, editingUser: action.payload };
+        case 'SET_PASSWORD_USER': return { ...state, passwordUser: action.payload };
+        case 'SET_NEW_PASS': return { ...state, newPass: action.payload };
+        case 'SET_LOADING': return { ...state, isLoading: action.payload };
+        default: return state;
+    }
+}
 
 const UsersPage = () => {
     const { user: currentUser } = useAuth();
-    const [users, setUsers] = useState([]);
-    const [clients, setClients] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [showForm, setShowForm] = useState(false);
-    const [formData, setFormData] = useState({
-        id: '',
-        name: '',
-        password: '',
-        role: 'user',
-        permission_level: 1,
-        client_id: currentUser?.client_id || ''
+    const [state, dispatch] = useReducer(reducer, {
+        ...initialState,
+        formData: { ...initialState.formData, client_id: currentUser?.client_id || '' }
     });
-    const [message, setMessage] = useState({ type: '', text: '' });
-
-    const [editingUser, setEditingUser] = useState(null);
-    const [passwordUser, setPasswordUser] = useState(null);
-    const [newPass, setNewPass] = useState('');
 
     const fetchUsers = async () => {
         try {
@@ -32,14 +50,13 @@ const UsersPage = () => {
             const response = await fetch(`/api/users?${params}`);
             const json = await response.json();
             if (json.success && Array.isArray(json.data)) {
-                setUsers(json.data);
+                dispatch({ type: 'SET_USERS', payload: json.data });
             } else {
-                setUsers([]);
+                dispatch({ type: 'SET_USERS', payload: [] });
             }
         } catch (error) {
             console.error('Error fetching users:', error);
-        } finally {
-            setIsLoading(false);
+            dispatch({ type: 'SET_LOADING', payload: false });
         }
     };
 
@@ -49,7 +66,7 @@ const UsersPage = () => {
             const response = await fetch('/api/clients');
             const json = await response.json();
             if (json.success && Array.isArray(json.data)) {
-                setClients(json.data);
+                dispatch({ type: 'SET_CLIENTS', payload: json.data });
             }
         } catch (error) {
             console.error('Error fetching clients:', error);
@@ -61,328 +78,121 @@ const UsersPage = () => {
         fetchClients();
     }, []);
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setMessage({ type: '', text: '' });
+        dispatch({ type: 'SET_MESSAGE', payload: { type: '', text: '' } });
 
         try {
             const response = await fetch('/api/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...formData,
-                    client_id: formData.client_id || null
-                })
+                body: JSON.stringify({ ...state.formData, client_id: state.formData.client_id || null })
             });
 
             const data = await response.json();
-
             if (data.success) {
-                setMessage({ type: 'success', text: 'Usuario creado correctamente' });
-                setFormData({ id: '', name: '', password: '', role: 'user', permission_level: 1, client_id: currentUser?.client_id || '' });
-                setShowForm(false);
+                dispatch({ type: 'SET_MESSAGE', payload: { type: 'success', text: 'Usuario creado correctamente' } });
+                dispatch({ type: 'RESET_FORM' });
                 fetchUsers();
             } else {
-                setMessage({ type: 'error', text: data.message || 'Error al crear usuario' });
+                dispatch({ type: 'SET_MESSAGE', payload: { type: 'error', text: data.message || 'Error al crear usuario' } });
             }
         } catch (error) {
-            setMessage({ type: 'error', text: 'Error de conexión con el servidor' });
+            dispatch({ type: 'SET_MESSAGE', payload: { type: 'error', text: 'Error de conexión con el servidor' } });
         }
-    };
-
-    const handleEditClick = (user) => {
-        setEditingUser({ ...user });
     };
 
     const handleUpdateUser = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch(`/api/users/${editingUser.id}`, {
+            const res = await fetch(`/api/users/${state.editingUser.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(editingUser)
+                body: JSON.stringify(state.editingUser)
             });
             const data = await res.json();
             if (data.success) {
-                setEditingUser(null);
+                dispatch({ type: 'SET_EDITING_USER', payload: null });
                 fetchUsers();
                 alert("Usuario actualizado correctamente");
             } else {
                 alert("Error al actualizar: " + data.message);
             }
         } catch (error) {
-            console.error(error);
             alert("Error de conexión");
         }
     };
 
     const handleChangePassword = async (e) => {
         e.preventDefault();
-        if (!newPass) return;
+        if (!state.newPass) return;
 
         try {
-            const res = await fetch(`/api/users/${passwordUser.id}/password`, {
+            const res = await fetch(`/api/users/${state.passwordUser.id}/password`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: newPass })
+                body: JSON.stringify({ password: state.newPass })
             });
-
             const data = await res.json();
             if (data.success) {
-                setPasswordUser(null);
-                setNewPass('');
+                dispatch({ type: 'SET_PASSWORD_USER', payload: null });
+                dispatch({ type: 'SET_NEW_PASS', payload: '' });
                 alert("Contraseña actualizada exitosamente");
             } else {
                 alert("Error: " + data.message);
             }
         } catch (error) {
-            console.error(error);
             alert("Error al cambiar contraseña");
         }
     };
-
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Gestión de Usuarios</h2>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">
-                        Crea y administra las cuentas de acceso al panel.
-                    </p>
+                    <h2 className="text-3xl font-bold tracking-tight text-foreground text-left">Gestión de Usuarios</h2>
+                    <p className="text-muted-foreground mt-1 text-left">Crea y administra las cuentas de acceso al panel.</p>
                 </div>
-                <Button onClick={() => setShowForm(!showForm)} variant={showForm ? "outline" : "default"}>
-                    {showForm ? 'Cancelar' : <><UserPlus className="w-4 h-4 mr-2" /> Nuevo Usuario</>}
+                <Button onClick={() => dispatch({ type: 'TOGGLE_FORM' })} variant={state.showForm ? "outline" : "default"}>
+                    {state.showForm ? 'Cancelar' : <><UserPlus className="w-4 h-4 mr-2" /> Nuevo Usuario</>}
                 </Button>
             </div>
 
-            {showForm && (
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-2xl mx-auto">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center">
-                        <UserPlus className="w-5 h-5 mr-2 text-primary" />
-                        Registrar Nuevo Empleado
-                    </h3>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">ID de Empleado</label>
-                                <input
-                                    type="text"
-                                    name="id"
-                                    value={formData.id}
-                                    onChange={handleChange}
-                                    className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-                                    placeholder="Ej. E029863"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Nombre Completo</label>
-                                <input
-                                    type="text"
-                                    name="name"
-                                    value={formData.name}
-                                    onChange={handleChange}
-                                    className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-                                    placeholder="Ej. Juan Pérez"
-                                    required
-                                />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Contraseña</label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-                                    placeholder="••••••••"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Rol / Nivel de Permiso</label>
-                                <select
-                                    name="permission_level"
-                                    value={formData.permission_level}
-                                    onChange={handleChange}
-                                    className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-                                >
-                                    <option value="1">Usuario (Nivel 1)</option>
-                                    <option value="3">Analista (Nivel 3)</option>
-                                    <option value="6">Administrador Cliente (Nivel 6)</option>
-                                    {currentUser?.permission_level === 8 && (
-                                        <option value="8">Super Administrador (Nivel 8)</option>
-                                    )}
-                                </select>
-                            </div>
-                        </div>
-
-                        {currentUser?.permission_level === 8 && (
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Asignar Cliente</label>
-                                <select
-                                    name="client_id"
-                                    value={formData.client_id}
-                                    onChange={handleChange}
-                                    className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-                                    required
-                                >
-                                    <option value="">Selecciona un cliente...</option>
-                                    {clients.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-
-                        {message.text && (
-                            <div className={`p-3 rounded-md text-sm ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                                {message.text}
-                            </div>
-                        )}
-
-                        <Button type="submit" className="w-full">
-                            Crear Usuario
-                        </Button>
-                    </form>
-                </div>
+            {state.showForm && (
+                <UserForm
+                    formData={state.formData}
+                    onChange={(e) => dispatch({ type: 'SET_FORM_DATA', payload: { [e.target.name]: e.target.value } })}
+                    onSubmit={handleSubmit}
+                    clients={state.clients}
+                    currentUser={currentUser}
+                    message={state.message}
+                />
             )}
 
-            {editingUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
-                        <h3 className="text-lg font-bold mb-4">Editar Usuario: {editingUser.id}</h3>
-                        <form onSubmit={handleUpdateUser} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Nombre</label>
-                                <input
-                                    className="w-full p-2 border rounded dark:bg-gray-700"
-                                    value={editingUser.name}
-                                    onChange={e => setEditingUser({ ...editingUser, name: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Nivel Permiso</label>
-                                <select
-                                    className="w-full p-2 border rounded dark:bg-gray-700"
-                                    value={editingUser.permission_level}
-                                    onChange={e => setEditingUser({ ...editingUser, permission_level: parseInt(e.target.value) })}
-                                >
-                                    <option value="1">Nivel 1 (Usuario)</option>
-                                    <option value="3">Nivel 3 (Analista)</option>
-                                    <option value="6">Nivel 6 (Admin Cliente)</option>
-                                    {currentUser?.permission_level === 8 && <option value="8">Nivel 8 (Super Admin)</option>}
-                                </select>
-                            </div>
-                            <div className="flex justify-end space-x-2 pt-2">
-                                <Button variant="ghost" type="button" onClick={() => setEditingUser(null)}>Cancelar</Button>
-                                <Button type="submit">Guardar Cambios</Button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            <UserTable
+                users={state.users}
+                isLoading={state.isLoading}
+                currentUser={currentUser}
+                clients={state.clients}
+                onEdit={(u) => dispatch({ type: 'SET_EDITING_USER', payload: u })}
+                onChangePassword={(u) => dispatch({ type: 'SET_PASSWORD_USER', payload: u })}
+            />
 
-            {passwordUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-sm shadow-2xl">
-                        <h3 className="text-lg font-bold mb-4">Cambiar Contraseña</h3>
-                        <p className="text-sm text-gray-500 mb-4">Usuario: {passwordUser.name} ({passwordUser.id})</p>
-                        <form onSubmit={handleChangePassword} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Nueva Contraseña</label>
-                                <input
-                                    type="password"
-                                    className="w-full p-2 border rounded dark:bg-gray-700"
-                                    placeholder="Nueva contraseña"
-                                    value={newPass}
-                                    onChange={e => setNewPass(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            <div className="flex justify-end space-x-2 pt-2">
-                                <Button variant="ghost" type="button" onClick={() => { setPasswordUser(null); setNewPass(''); }}>Cancelar</Button>
-                                <Button type="submit" className="bg-red-600 hover:bg-red-700 text-white">Actualizar</Button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            <EditUserModal
+                user={state.editingUser}
+                onClose={() => dispatch({ type: 'SET_EDITING_USER', payload: null })}
+                onUpdate={handleUpdateUser}
+                onChange={(u) => dispatch({ type: 'SET_EDITING_USER', payload: u })}
+                currentUser={currentUser}
+            />
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
-                            <tr>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Empleado</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rol / Nivel</th>
-                                {currentUser?.permission_level === 8 && (
-                                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
-                                )}
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan={currentUser?.permission_level === 8 ? "4" : "3"} className="px-6 py-10 text-center text-gray-400">
-                                        Cargando usuarios...
-                                    </td>
-                                </tr>
-                            ) : users.length === 0 ? (
-                                <tr>
-                                    <td colSpan={currentUser?.permission_level === 8 ? "4" : "3"} className="px-6 py-10 text-center text-gray-400">
-                                        No hay usuarios registrados.
-                                    </td>
-                                </tr>
-                            ) : (
-                                users.map((u) => (
-                                    <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center space-x-3">
-                                                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-                                                    {u.name?.charAt(0).toUpperCase() || '?'}
-                                                </div>
-                                                <div>
-                                                    <div className="text-sm font-medium text-gray-900 dark:text-white">{u.name || 'Sin nombre'}</div>
-                                                    <div className="text-sm text-gray-500">{u.id}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${u.permission_level >= 6 ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                                                }`}>
-                                                {u.permission_level >= 6 && <ShieldCheck className="w-3 h-3 mr-1" />}
-                                                Nivel {u.permission_level}
-                                            </span>
-                                        </td>
-                                        {currentUser?.permission_level === 8 && (
-                                            <td className="px-6 py-4 text-sm text-gray-500">
-                                                {clients.find(c => c.id === u.client_id)?.name || 'Sin Asignar'}
-                                            </td>
-                                        )}
-                                        <td className="px-6 py-4 flex space-x-2">
-                                            <Button variant="ghost" size="sm" onClick={() => handleEditClick(u)} className="text-blue-600 hover:bg-blue-50">
-                                                Editar
-                                            </Button>
-                                            <Button variant="ghost" size="sm" onClick={() => setPasswordUser(u)} className="text-amber-600 hover:bg-amber-50">
-                                                Cambiar Contraseña
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <PasswordModal
+                user={state.passwordUser}
+                onClose={() => { dispatch({ type: 'SET_PASSWORD_USER', payload: null }); dispatch({ type: 'SET_NEW_PASS', payload: '' }); }}
+                onUpdate={handleChangePassword}
+                newPass={state.newPass}
+                onPassChange={(val) => dispatch({ type: 'SET_NEW_PASS', payload: val })}
+            />
         </div>
     );
 };

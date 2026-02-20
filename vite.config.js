@@ -2,8 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+
 export default defineConfig({
-    base: process.env.VITE_BASE_URL || './',
+    base: process.env.VITE_BASE_URL || '/',
     plugins: [react()],
     resolve: {
         alias: {
@@ -26,9 +27,11 @@ export default defineConfig({
     },
     server: {
         allowedHosts: [
+            'miamueveteprepagor7.ngrok.dev',
             'silent-ghosts-cheat.loca.lt',
             '.loca.lt',
-            '.ngrok-free.app'
+            '.ngrok-free.app',
+            '.ngrok-free.dev'
         ],
         proxy: {
             '/api': {

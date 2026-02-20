@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
+import { sileo } from 'sileo';
+import { Lock, User, AlertCircle, CheckCircle2, Bot } from 'lucide-react';
 
 const Login = () => {
     const [id, setId] = useState('');
@@ -19,62 +21,85 @@ const Login = () => {
         const result = await login(id, password);
 
         if (result.success) {
-            navigate('/');
+            sileo.success({
+                title: "¡Bienvenido de nuevo!",
+                description: "Acceso concedido al Centro de Comando MIA.",
+                icon: <CheckCircle2 className="text-emerald-500" size={18} />
+            });
+            navigate('/app');
         } else {
+            sileo.error({
+                title: "Error de Acceso",
+                description: result.message || "Credenciales incorrectas. Intenta de nuevo.",
+                icon: <AlertCircle className="text-red-500" size={18} />
+            });
             setError(result.message);
         }
         setIsLoading(false);
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-200 dark:border-gray-700">
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-primary">Sophia Dashboard</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2">Inicia sesión para continuar</p>
+        <div className="min-h-screen flex items-center justify-center bg-background p-4 transition-colors">
+            <div className="w-full max-w-md space-y-8">
+                <div className="flex flex-col items-center">
+                    <Link to="/" className="flex flex-col items-center gap-3 group transition-transform hover:scale-105 active:scale-95">
+                        <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-2xl shadow-primary/40 group-hover:glow-primary transition-all">
+                            <Bot className="text-white w-10 h-10" />
+                        </div>
+                        <span className="font-black text-3xl tracking-tighter uppercase text-slate-900 dark:text-white">Mía</span>
+                    </Link>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            ID de Empleado
-                        </label>
-                        <div className="relative">
+                <div className="bg-card rounded-[2rem] shadow-2xl p-8 border border-border/50 backdrop-blur-xl">
+                    <div className="text-center mb-10">
+                        <h1 className="text-2xl font-black tracking-tight text-foreground uppercase italic">Bienvenido</h1>
+                        <p className="text-muted-foreground mt-2 font-medium">Inicia sesión para continuar al dashboard</p>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label htmlFor="employee_id" className="block text-sm font-medium text-foreground mb-1">
+                                ID de Empleado
+                            </label>
+                            <div className="relative">
+                                <input
+                                    id="employee_id"
+                                    type="text"
+                                    value={id}
+                                    onChange={(e) => setId(e.target.value)}
+                                    className="w-full p-2 border border-input rounded-md focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
+                                    placeholder="Ej. E029863"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
+                                Contraseña
+                            </label>
                             <input
-                                type="text"
-                                value={id}
-                                onChange={(e) => setId(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                placeholder="Ej. E029863"
+                                id="password"
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full p-2 border border-input rounded-md focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
+                                placeholder="••••••••"
                                 required
                             />
                         </div>
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Contraseña
-                        </label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                            placeholder="••••••••"
-                            required
-                        />
-                    </div>
+                        {error && (
+                            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+                                {error}
+                            </div>
+                        )}
 
-                    {error && (
-                        <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-md">
-                            {error}
-                        </div>
-                    )}
-
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? 'Cargando...' : 'Ingresar'}
-                    </Button>
-                </form>
+                        <Button type="submit" className="w-full" disabled={isLoading}>
+                            {isLoading ? 'Cargando...' : 'Ingresar'}
+                        </Button>
+                    </form>
+                </div>
             </div>
         </div>
     );
